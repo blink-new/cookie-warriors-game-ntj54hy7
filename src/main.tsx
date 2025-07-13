@@ -1,12 +1,23 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import { Toaster } from 'react-hot-toast'
-import App from './App'
-import './index.css'
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './index.css';
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+// Remove the loading screen once React takes over
+const removeLoadingScreen = () => {
+  const loadingScreen = document.querySelector('.loading-screen');
+  if (loadingScreen) {
+    loadingScreen.remove();
+  }
+};
+
+const root = ReactDOM.createRoot(document.getElementById('root')!);
+
+root.render(
   <React.StrictMode>
-    <Toaster position="top-right" />
     <App />
-  </React.StrictMode>,
-) 
+  </React.StrictMode>
+);
+
+// Remove loading screen after React renders
+setTimeout(removeLoadingScreen, 100);

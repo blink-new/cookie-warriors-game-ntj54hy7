@@ -9,32 +9,31 @@ interface Cookie3DModelProps {
   onClick?: () => void;
 }
 
-export const Cookie3DModel: React.FC<Cookie3DModelProps> = ({ cookie, onClick }) => {
+export const Cookie3DModel: React.FC<Cookie3DModelProps> = React.memo(({ cookie, onClick }) => {
   const groupRef = useRef<THREE.Group>(null);
   const cookieRef = useRef<THREE.Mesh>(null);
   const { type, health, maxHealth, isSelected, x, y } = cookie;
   const healthPercentage = (health / maxHealth) * 100;
 
   // Convert 2D position to 3D
-  const position3D: [number, number, number] = [
+  const position3D: [number, number, number] = useMemo(() => [
     (x - 400) / 50, // Center and scale
     0.5, // Height above ground
     (y - 300) / 50  // Center and scale
-  ];
+  ], [x, y]);
 
-  // Create cookie texture pattern
+  // Create cookie geometry (optimized)
   const cookieGeometry = useMemo(() => {
-    const geometry = new THREE.CylinderGeometry(type.size / 100, type.size / 100, 0.25, 32);
+    const geometry = new THREE.CylinderGeometry(type.size / 100, type.size / 100, 0.25, 16); // Reduced segments from 32 to 16
     return geometry;
   }, [type.size]);
 
-  // Create materials
+  // Create materials (optimized)
   const cookieMaterial = useMemo(() => {
     const material = new THREE.MeshStandardMaterial({
       color: new THREE.Color(type.color),
       roughness: 0.8,
       metalness: 0.1,
-      bumpScale: 0.1,
     });
     return material;
   }, [type.color]);
@@ -52,15 +51,11 @@ export const Cookie3DModel: React.FC<Cookie3DModelProps> = ({ cookie, onClick })
       // Gentle floating animation
       groupRef.current.position.y = position3D[1] + Math.sin(state.clock.elapsedTime * 2) * 0.1;
       
-      // Magical element specific animations
+      // Magical element specific animations (simplified)
       if (type.magicalElement === 'fire') {
         groupRef.current.rotation.y += 0.02;
-      } else if (type.magicalElement === 'ice') {
-        groupRef.current.rotation.x = Math.sin(state.clock.elapsedTime) * 0.1;
-        groupRef.current.rotation.z = Math.cos(state.clock.elapsedTime) * 0.1;
       } else if (type.magicalElement === 'lightning') {
         groupRef.current.rotation.y += 0.03;
-        groupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 2) * 0.05;
       }
 
       // Selection glow effect
@@ -73,16 +68,16 @@ export const Cookie3DModel: React.FC<Cookie3DModelProps> = ({ cookie, onClick })
     }
   });
 
-  // Generate chocolate chip positions
+  // Generate fewer chocolate chip positions for better performance
   const chipPositions = useMemo(() => {
     const positions = [];
-    const numChips = 8 + Math.floor(Math.random() * 4);
+    const numChips = 4; // Reduced from 8-12 to 4
     for (let i = 0; i < numChips; i++) {
-      const angle = (i / numChips) * Math.PI * 2 + Math.random() * 0.5;
-      const radius = (0.3 + Math.random() * 0.4) * (type.size / 100);
+      const angle = (i / numChips) * Math.PI * 2;
+      const radius = 0.4 * (type.size / 100);
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;
-      const y = 0.13 + Math.random() * 0.02;
+      const y = 0.13;
       positions.push([x, y, z]);
     }
     return positions;
@@ -91,45 +86,23 @@ export const Cookie3DModel: React.FC<Cookie3DModelProps> = ({ cookie, onClick })
   return (
     <group ref={groupRef} position={position3D} onClick={onClick}>
       {/* Main Cookie Body */}
-      <mesh ref={cookieRef} geometry={cookieGeometry} material={cookieMaterial}>
-        {/* Cookie surface bumps for texture */}
-        {[...Array(12)].map((_, i) => {
-          const angle = (i / 12) * Math.PI * 2;
-          const radius = (0.2 + Math.random() * 0.3) * (type.size / 100);
-          const x = Math.cos(angle) * radius;
-          const z = Math.sin(angle) * radius;
-          return (
-            <Sphere 
-              key={i}
-              args={[0.02]} 
-              position={[x, 0.13, z]}
-            >
-              <meshStandardMaterial 
-                color={type.color} 
-                roughness={0.9}
-                transparent
-                opacity={0.3}
-              />
-            </Sphere>
-          );
-        })}
-      </mesh>
+      <mesh ref={cookieRef} geometry={cookieGeometry} material={cookieMaterial} />
 
-      {/* Chocolate Chips */}
+      {/* Chocolate Chips (reduced) */}
       {chipPositions.map((pos, i) => (
-        <Sphere key={i} args={[0.03 + Math.random() * 0.02]} position={pos as [number, number, number]}>
+        <Sphere key={i} args={[0.03]} position={pos as [number, number, number]}>
           <primitive object={chipMaterial} />
         </Sphere>
       ))}
 
-      {/* Magical Element Effects */}
+      {/* Simplified Magical Element Effects */}
       {type.magicalElement === 'fire' && (
         <group>
-          {/* Fire particles */}
-          {[...Array(6)].map((_, i) => (
+          {/* Reduced fire particles */}
+          {[...Array(3)].map((_, i) => (
             <Sphere 
               key={i}
-              args={[0.02 + Math.random() * 0.01]} 
+              args={[0.02]} 
               position={[
                 (Math.random() - 0.5) * 0.4,
                 0.3 + Math.random() * 0.2,
@@ -137,10 +110,10 @@ export const Cookie3DModel: React.FC<Cookie3DModelProps> = ({ cookie, onClick })
               ]}
             >
               <meshBasicMaterial 
-                color={i % 2 === 0 ? "#ff4500" : "#ff6600"} 
+                color="#ff4500"
                 transparent 
                 opacity={0.7}
-                emissive={i % 2 === 0 ? "#ff4500" : "#ff6600"}
+                emissive="#ff4500"
                 emissiveIntensity={0.8}
               />
             </Sphere>
@@ -150,17 +123,16 @@ export const Cookie3DModel: React.FC<Cookie3DModelProps> = ({ cookie, onClick })
 
       {type.magicalElement === 'ice' && (
         <group>
-          {/* Ice crystals */}
-          {[...Array(4)].map((_, i) => (
+          {/* Simplified ice crystals */}
+          {[...Array(2)].map((_, i) => (
             <Box 
               key={i}
               args={[0.05, 0.2, 0.05]} 
               position={[
-                Math.cos((i / 4) * Math.PI * 2) * 0.3,
+                Math.cos((i / 2) * Math.PI * 2) * 0.3,
                 0.4,
-                Math.sin((i / 4) * Math.PI * 2) * 0.3
+                Math.sin((i / 2) * Math.PI * 2) * 0.3
               ]}
-              rotation={[0, (i / 4) * Math.PI * 2, 0]}
             >
               <meshBasicMaterial 
                 color="#87ceeb" 
@@ -176,22 +148,8 @@ export const Cookie3DModel: React.FC<Cookie3DModelProps> = ({ cookie, onClick })
 
       {type.magicalElement === 'lightning' && (
         <group>
-          {/* Lightning bolts */}
-          <Box args={[0.02, 0.3, 0.02]} position={[0, 0.5, 0]} rotation={[0, 0, Math.PI / 6]}>
-            <meshBasicMaterial 
-              color="#ffff00" 
-              emissive="#ffff00"
-              emissiveIntensity={1.2}
-            />
-          </Box>
-          <Box args={[0.02, 0.2, 0.02]} position={[0.08, 0.4, 0]} rotation={[0, 0, -Math.PI / 4]}>
-            <meshBasicMaterial 
-              color="#ffff00" 
-              emissive="#ffff00"
-              emissiveIntensity={1.2}
-            />
-          </Box>
-          <Box args={[0.02, 0.15, 0.02]} position={[-0.06, 0.35, 0]} rotation={[0, 0, Math.PI / 3]}>
+          {/* Simplified lightning bolt */}
+          <Box args={[0.02, 0.3, 0.02]} position={[0, 0.5, 0]}>
             <meshBasicMaterial 
               color="#ffff00" 
               emissive="#ffff00"
@@ -225,43 +183,21 @@ export const Cookie3DModel: React.FC<Cookie3DModelProps> = ({ cookie, onClick })
         color="white"
         anchorX="center"
         anchorY="middle"
-        outlineWidth={0.01}
-        outlineColor="black"
       >
         {type.name}
       </Text>
 
-      {/* Selection Ring */}
+      {/* Selection Ring (simplified) */}
       {isSelected && (
-        <group>
-          <Cylinder args={[type.size / 60, type.size / 60, 0.03, 32]} position={[0, -0.1, 0]}>
-            <meshBasicMaterial 
-              color={type.color} 
-              transparent 
-              opacity={0.6}
-              emissive={type.color}
-              emissiveIntensity={0.4}
-            />
-          </Cylinder>
-          {/* Rotating selection particles */}
-          {[...Array(8)].map((_, i) => (
-            <Sphere 
-              key={i}
-              args={[0.02]} 
-              position={[
-                Math.cos((i / 8) * Math.PI * 2) * (type.size / 70),
-                -0.05,
-                Math.sin((i / 8) * Math.PI * 2) * (type.size / 70)
-              ]}
-            >
-              <meshBasicMaterial 
-                color={type.secondaryColor} 
-                emissive={type.secondaryColor}
-                emissiveIntensity={0.8}
-              />
-            </Sphere>
-          ))}
-        </group>
+        <Cylinder args={[type.size / 60, type.size / 60, 0.03, 16]} position={[0, -0.1, 0]}>
+          <meshBasicMaterial 
+            color={type.color} 
+            transparent 
+            opacity={0.6}
+            emissive={type.color}
+            emissiveIntensity={0.4}
+          />
+        </Cylinder>
       )}
 
       {/* Magical Aura */}
@@ -276,4 +212,6 @@ export const Cookie3DModel: React.FC<Cookie3DModelProps> = ({ cookie, onClick })
       </Sphere>
     </group>
   );
-};
+});
+
+Cookie3DModel.displayName = 'Cookie3DModel';

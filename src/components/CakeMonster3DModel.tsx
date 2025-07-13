@@ -8,22 +8,22 @@ interface CakeMonster3DModelProps {
   monster: CakeMonster;
 }
 
-export const CakeMonster3DModel: React.FC<CakeMonster3DModelProps> = ({ monster }) => {
+export const CakeMonster3DModel: React.FC<CakeMonster3DModelProps> = React.memo(({ monster }) => {
   const groupRef = useRef<THREE.Group>(null);
   const cakeRef = useRef<THREE.Mesh>(null);
   const { health, maxHealth, x, y, size, type } = monster;
   const healthPercentage = (health / maxHealth) * 100;
 
   // Convert 2D position to 3D
-  const position3D: [number, number, number] = [
+  const position3D: [number, number, number] = useMemo(() => [
     (x - 400) / 50,
     0.5,
     (y - 300) / 50
-  ];
+  ], [x, y]);
 
-  // Create cake geometry
+  // Create cake geometry (optimized)
   const cakeGeometry = useMemo(() => {
-    return new THREE.CylinderGeometry(size / 100, size / 120, size / 60, 16);
+    return new THREE.CylinderGeometry(size / 100, size / 120, size / 60, 12); // Reduced segments from 16 to 12
   }, [size]);
 
   const getMonsterColors = () => {
@@ -47,7 +47,7 @@ export const CakeMonster3DModel: React.FC<CakeMonster3DModelProps> = ({ monster 
 
   const colors = getMonsterColors();
 
-  // Create materials
+  // Create materials (optimized)
   const cakeMaterial = useMemo(() => {
     return new THREE.MeshStandardMaterial({
       color: new THREE.Color(colors.primary),
@@ -78,13 +78,13 @@ export const CakeMonster3DModel: React.FC<CakeMonster3DModelProps> = ({ monster 
     }
   });
 
-  // Generate decoration positions
+  // Generate fewer decoration positions for better performance
   const decorationPositions = useMemo(() => {
     const positions = [];
-    const numDecorations = type === 'boss' ? 12 : 8;
+    const numDecorations = type === 'boss' ? 6 : 4; // Reduced from 12/8 to 6/4
     for (let i = 0; i < numDecorations; i++) {
       const angle = (i / numDecorations) * Math.PI * 2;
-      const radius = (0.7 + Math.random() * 0.2) * (size / 100);
+      const radius = 0.7 * (size / 100);
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;
       const y = (size / 120) + 0.05;
@@ -118,11 +118,11 @@ export const CakeMonster3DModel: React.FC<CakeMonster3DModelProps> = ({ monster 
         />
       </Cylinder>
 
-      {/* Cake Decorations (cherries, sprinkles) */}
+      {/* Cake Decorations (reduced) */}
       {decorationPositions.map((pos, i) => (
         <Sphere 
           key={i} 
-          args={[0.02 + Math.random() * 0.01]} 
+          args={[0.02]} 
           position={pos as [number, number, number]}
         >
           <meshStandardMaterial 
@@ -162,18 +162,17 @@ export const CakeMonster3DModel: React.FC<CakeMonster3DModelProps> = ({ monster 
       <Box 
         args={[0.15, 0.03, 0.08]} 
         position={[0, size / 120, size / 90]}
-        rotation={[0, 0, Math.PI / 12]}
       >
         <meshBasicMaterial color="#000000" />
       </Box>
 
-      {/* Sharp Teeth */}
-      {[...Array(6)].map((_, i) => (
+      {/* Simplified Sharp Teeth */}
+      {[...Array(3)].map((_, i) => (
         <Box 
           key={i}
           args={[0.02, 0.06, 0.02]} 
           position={[
-            -0.06 + (i * 0.025),
+            -0.03 + (i * 0.03),
             (size / 120) - 0.03,
             (size / 90) + 0.02
           ]}
@@ -182,10 +181,10 @@ export const CakeMonster3DModel: React.FC<CakeMonster3DModelProps> = ({ monster 
         </Box>
       ))}
 
-      {/* Boss Crown */}
+      {/* Boss Crown (simplified) */}
       {type === 'boss' && (
         <group position={[0, size / 40, 0]}>
-          <Cylinder args={[0.18, 0.12, 0.12, 8]} rotation={[0, Math.PI / 8, 0]}>
+          <Cylinder args={[0.18, 0.12, 0.12, 6]}>
             <meshStandardMaterial 
               color="#ffd700" 
               metalness={0.9}
@@ -194,15 +193,15 @@ export const CakeMonster3DModel: React.FC<CakeMonster3DModelProps> = ({ monster 
               emissiveIntensity={0.3}
             />
           </Cylinder>
-          {/* Crown jewels */}
-          {[...Array(8)].map((_, i) => (
+          {/* Reduced crown jewels */}
+          {[...Array(3)].map((_, i) => (
             <Sphere 
               key={i}
               args={[0.02]} 
               position={[
-                Math.cos((i / 8) * Math.PI * 2) * 0.15,
+                Math.cos((i / 3) * Math.PI * 2) * 0.15,
                 0.08,
-                Math.sin((i / 8) * Math.PI * 2) * 0.15
+                Math.sin((i / 3) * Math.PI * 2) * 0.15
               ]}
             >
               <meshBasicMaterial 
@@ -226,8 +225,8 @@ export const CakeMonster3DModel: React.FC<CakeMonster3DModelProps> = ({ monster 
         />
       </Sphere>
 
-      {/* Dark Energy Particles */}
-      {[...Array(type === 'boss' ? 8 : 5)].map((_, i) => (
+      {/* Reduced Dark Energy Particles */}
+      {[...Array(type === 'boss' ? 4 : 2)].map((_, i) => (
         <Sphere 
           key={i}
           args={[0.015]} 
@@ -271,38 +270,11 @@ export const CakeMonster3DModel: React.FC<CakeMonster3DModelProps> = ({ monster 
         color="#ff6666"
         anchorX="center"
         anchorY="middle"
-        outlineWidth={0.01}
-        outlineColor="black"
       >
         {type === 'boss' ? 'Cake Boss' : 'Cake Monster'}
       </Text>
-
-      {/* Boss Special Effects */}
-      {type === 'boss' && (
-        <group>
-          {/* Lightning around boss */}
-          {[...Array(4)].map((_, i) => (
-            <Box 
-              key={i}
-              args={[0.01, 0.4, 0.01]} 
-              position={[
-                Math.cos((i / 4) * Math.PI * 2) * (size / 80),
-                0.3,
-                Math.sin((i / 4) * Math.PI * 2) * (size / 80)
-              ]}
-              rotation={[Math.random() * 0.5, (i / 4) * Math.PI * 2, Math.random() * 0.5]}
-            >
-              <meshBasicMaterial 
-                color="#ff00ff" 
-                emissive="#ff00ff"
-                emissiveIntensity={1.0}
-                transparent
-                opacity={0.8}
-              />
-            </Box>
-          ))}
-        </group>
-      )}
     </group>
   );
-};
+});
+
+CakeMonster3DModel.displayName = 'CakeMonster3DModel';

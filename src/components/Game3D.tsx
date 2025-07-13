@@ -1,15 +1,17 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Text, Box, Sphere, Cylinder } from '@react-three/drei';
 import * as THREE from 'three';
 import { Cookie, CakeMonster as CakeMonsterType, GameState } from '../types/game';
 import { COOKIE_TYPES } from '../data/cookieTypes';
 import { CookieSelector } from './CookieSelector';
-import { Cookie3DModel } from './Cookie3DModel';
-import { CakeMonster3DModel } from './CakeMonster3DModel';
 
-// 3D Forest Environment
-const ForestEnvironment: React.FC = () => {
+// Lazy load heavy 3D models
+const Cookie3DModel = lazy(() => import('./Cookie3DModel').then(module => ({ default: module.Cookie3DModel })));
+const CakeMonster3DModel = lazy(() => import('./CakeMonster3DModel').then(module => ({ default: module.CakeMonster3DModel })));
+
+// Lightweight 3D Forest Environment (optimized)
+const ForestEnvironment: React.FC = React.memo(() => {
   return (
     <group>
       {/* Ground */}
@@ -17,11 +19,11 @@ const ForestEnvironment: React.FC = () => {
         <meshStandardMaterial color="#2D5016" />
       </Box>
 
-      {/* Trees */}
-      {[...Array(8)].map((_, i) => {
+      {/* Reduced number of trees for better performance */}
+      {[...Array(5)].map((_, i) => {
         const x = (Math.random() - 0.5) * 18;
         const z = (Math.random() - 0.5) * 13;
-        const height = 2 + Math.random() * 2;
+        const height = 2 + Math.random() * 1.5;
         
         return (
           <group key={i} position={[x, 0, z]}>
@@ -37,36 +39,8 @@ const ForestEnvironment: React.FC = () => {
         );
       })}
 
-      {/* Magical Mushrooms */}
-      {[...Array(5)].map((_, i) => {
-        const x = (Math.random() - 0.5) * 16;
-        const z = (Math.random() - 0.5) * 11;
-        
-        return (
-          <group key={i} position={[x, 0, z]}>
-            <Cylinder args={[0.05, 0.08, 0.3]} position={[0, 0.15, 0]}>
-              <meshStandardMaterial color="#F5F5DC" />
-            </Cylinder>
-            <Sphere args={[0.15]} position={[0, 0.35, 0]}>
-              <meshStandardMaterial 
-                color="#FF6347" 
-                emissive="#FF6347"
-                emissiveIntensity={0.1}
-              />
-            </Sphere>
-            {/* White spots */}
-            <Sphere args={[0.03]} position={[0.08, 0.35, 0.08]}>
-              <meshStandardMaterial color="white" />
-            </Sphere>
-            <Sphere args={[0.02]} position={[-0.06, 0.38, 0.06]}>
-              <meshStandardMaterial color="white" />
-            </Sphere>
-          </group>
-        );
-      })}
-
-      {/* Magical Particles */}
-      {[...Array(20)].map((_, i) => {
+      {/* Reduced magical particles for better performance */}
+      {[...Array(8)].map((_, i) => {
         const x = (Math.random() - 0.5) * 20;
         const y = Math.random() * 3 + 1;
         const z = (Math.random() - 0.5) * 15;
@@ -85,10 +59,12 @@ const ForestEnvironment: React.FC = () => {
       })}
     </group>
   );
-};
+});
+
+ForestEnvironment.displayName = 'ForestEnvironment';
 
 // Camera Controller for clicking
-const CameraController: React.FC<{ onArenaClick: (x: number, y: number) => void }> = ({ onArenaClick }) => {
+const CameraController: React.FC<{ onArenaClick: (x: number, y: number) => void }> = React.memo(({ onArenaClick }) => {
   const { camera, raycaster, scene } = useThree();
   
   const handleClick = useCallback((event: MouseEvent) => {
@@ -117,7 +93,16 @@ const CameraController: React.FC<{ onArenaClick: (x: number, y: number) => void 
   }, [handleClick]);
 
   return null;
-};
+});
+
+CameraController.displayName = 'CameraController';
+
+// Simple fallback for 3D models while loading
+const ModelFallback = ({ position }: { position: [number, number, number] }) => (
+  <Box args={[0.5, 0.5, 0.5]} position={position}>
+    <meshStandardMaterial color="#888888" transparent opacity={0.5} />
+  </Box>
+);
 
 // Main 3D Game Component
 export const Game3D: React.FC = () => {
@@ -224,7 +209,7 @@ export const Game3D: React.FC = () => {
     }));
   }, []);
 
-  // Game loop for movement and combat
+  // Optimized game loop with reduced frequency
   useEffect(() => {
     if (gameState.gameStatus !== 'playing') return;
 
@@ -264,7 +249,7 @@ export const Game3D: React.FC = () => {
           monsters: newMonsters,
         };
       });
-    }, 50);
+    }, 100); // Reduced frequency from 50ms to 100ms
 
     return () => clearInterval(gameLoop);
   }, [gameState.gameStatus]);
@@ -275,7 +260,7 @@ export const Game3D: React.FC = () => {
 
     const spawnTimer = setInterval(() => {
       setGameState(prev => {
-        if (prev.monsters.length < 5) {
+        if (prev.monsters.length < 3) { // Reduced max monsters from 5 to 3
           const newMonster = createMonster(Math.random() < 0.1 ? 'boss' : 'basic');
           return {
             ...prev,
@@ -284,7 +269,7 @@ export const Game3D: React.FC = () => {
         }
         return prev;
       });
-    }, 3000);
+    }, 4000); // Increased spawn time from 3000ms to 4000ms
 
     return () => clearInterval(spawnTimer);
   }, [gameState.gameStatus, createMonster]);
@@ -357,33 +342,54 @@ export const Game3D: React.FC = () => {
             <Canvas
               camera={{ position: [0, 8, 12], fov: 60 }}
               style={{ background: 'linear-gradient(to bottom, #1a2e0a, #2d5016)' }}
+              performance={{ min: 0.5 }} // Performance optimization
+              dpr={[1, 2]} // Limit device pixel ratio for better performance
             >
-              {/* Lighting */}
+              {/* Optimized Lighting */}
               <ambientLight intensity={0.4} />
               <directionalLight 
                 position={[10, 10, 5]} 
                 intensity={1} 
-                castShadow
-                shadow-mapSize-width={2048}
-                shadow-mapSize-height={2048}
+                castShadow={false} // Disable shadows for better performance
               />
               <pointLight position={[0, 5, 0]} intensity={0.5} color="#FFD700" />
 
               {/* Environment */}
               <ForestEnvironment />
 
-              {/* Game Objects */}
-              {gameState.cookies.map((cookie) => (
-                <Cookie3DModel
-                  key={cookie.id}
-                  cookie={cookie}
-                  onClick={() => selectCookie(cookie.id)}
-                />
-              ))}
+              {/* Game Objects with Suspense */}
+              <Suspense fallback={null}>
+                {gameState.cookies.map((cookie) => {
+                  const position3D: [number, number, number] = [
+                    (cookie.x - 400) / 50,
+                    0.5,
+                    (cookie.y - 300) / 50
+                  ];
+                  
+                  return (
+                    <Suspense key={cookie.id} fallback={<ModelFallback position={position3D} />}>
+                      <Cookie3DModel
+                        cookie={cookie}
+                        onClick={() => selectCookie(cookie.id)}
+                      />
+                    </Suspense>
+                  );
+                })}
 
-              {gameState.monsters.map((monster) => (
-                <CakeMonster3DModel key={monster.id} monster={monster} />
-              ))}
+                {gameState.monsters.map((monster) => {
+                  const position3D: [number, number, number] = [
+                    (monster.x - 400) / 50,
+                    0.5,
+                    (monster.y - 300) / 50
+                  ];
+                  
+                  return (
+                    <Suspense key={monster.id} fallback={<ModelFallback position={position3D} />}>
+                      <CakeMonster3DModel monster={monster} />
+                    </Suspense>
+                  );
+                })}
+              </Suspense>
 
               {/* Camera Controls */}
               <OrbitControls 
